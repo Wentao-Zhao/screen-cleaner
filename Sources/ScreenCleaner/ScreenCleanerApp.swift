@@ -3,37 +3,129 @@ import ScreenCleanerCore
 import SwiftUI
 
 @main
-struct ScreenCleanerApp: App {
-  @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-  @StateObject private var coordinator: CleaningSessionCoordinator
+enum ScreenCleanerMain {
+  static func main() {
+    let application = NSApplication.shared
+    let delegate = AppDelegate()
 
-  init() {
-    let permissionManager = AccessibilityPermissionManager()
-    let keyboardBlocker = KeyboardEventBlocker()
-    let overlayController = ScreenOverlayController()
-
-    _coordinator = StateObject(
-      wrappedValue: CleaningSessionCoordinator(
-        permissionProvider: permissionManager,
-        keyboardBlocker: keyboardBlocker,
-        overlayPresenter: overlayController
-      )
-    )
-  }
-
-  var body: some Scene {
-    MenuBarExtra {
-      MenuBarContent(coordinator: coordinator)
-    } label: {
-      Image(nsImage: MenuBarIcon.image)
-    }
-    .menuBarExtraStyle(.window)
+    application.delegate = delegate
+    application.setActivationPolicy(.accessory)
+    application.run()
   }
 }
 
+@MainActor
 private final class AppDelegate: NSObject, NSApplicationDelegate {
+  private let coordinator: CleaningSessionCoordinator
+  private var statusItemController: StatusItemController?
+
+  override init() {
+    coordinator = CleaningSessionCoordinator(
+      permissionProvider: AccessibilityPermissionManager(),
+      keyboardBlocker: KeyboardEventBlocker(),
+      overlayPresenter: ScreenOverlayController()
+    )
+    super.init()
+  }
+
   func applicationDidFinishLaunching(_ notification: Notification) {
-    NSApp.setActivationPolicy(.accessory)
+    statusItemController = StatusItemController(coordinator: coordinator)
+  }
+
+  func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+    ApplicationLifecyclePolicy.shouldTerminateAfterLastWindowClosed
+  }
+
+  func applicationWillTerminate(_ notification: Notification) {
+    coordinator.stop()
+  }
+}
+
+@MainActor
+private final class StatusItemController: NSObject {
+  private let coordinator: CleaningSessionCoordinator
+  private let statusItem: NSStatusItem
+  private let popover: NSPopover
+
+  init(coordinator: CleaningSessionCoordinator) {
+    self.coordinator = coordinator
+    statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    popover = NSPopover()
+    super.init()
+
+    configureStatusItem()
+    configurePopover()
+  }
+
+  private func configureStatusItem() {
+    guard let button = statusItem.button else {
+      return
+    }
+
+    button.image = MenuBarIcon.image
+    button.imagePosition = .imageOnly
+    button.toolTip = "屏幕清洁"
+    button.target = self
+    button.action = #selector(statusItemClicked(_:))
+    button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+  }
+
+  private func configurePopover() {
+    popover.behavior = .transient
+    popover.animates = true
+    popover.contentSize = NSSize(width: 300, height: 150)
+    popover.contentViewController = NSHostingController(
+      rootView: MenuBarContent(coordinator: coordinator)
+    )
+  }
+
+  @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
+    let event: StatusItemMouseEvent =
+      NSApp.currentEvent?.type == .rightMouseUp ? .rightMouseUp : .leftMouseUp
+
+    switch StatusItemInteractionPolicy.action(for: event) {
+    case .togglePopover:
+      togglePopover(relativeTo: sender)
+    case .showApplicationMenu:
+      showApplicationMenu()
+    }
+  }
+
+  private func togglePopover(relativeTo button: NSStatusBarButton) {
+    if popover.isShown {
+      popover.performClose(nil)
+      return
+    }
+
+    coordinator.refreshPermissionState()
+    popover.show(
+      relativeTo: button.bounds,
+      of: button,
+      preferredEdge: .minY
+    )
+    NSApp.activate(ignoringOtherApps: true)
+  }
+
+  private func showApplicationMenu() {
+    popover.performClose(nil)
+
+    let menu = NSMenu()
+    let quitItem = NSMenuItem(
+      title: "退出 App",
+      action: #selector(quitApplication),
+      keyEquivalent: "q"
+    )
+    quitItem.target = self
+    menu.addItem(quitItem)
+
+    statusItem.menu = menu
+    statusItem.button?.performClick(nil)
+    statusItem.menu = nil
+  }
+
+  @objc private func quitApplication() {
+    coordinator.stop()
+    NSApp.terminate(nil)
   }
 }
 
@@ -53,30 +145,16 @@ private struct MenuBarContent: View {
 
       statusContent
 
-      Divider()
-
-      HStack {
-        Button("退出应用") {
-          coordinator.stop()
-          NSApp.terminate(nil)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
-
-        Spacer()
-
-        Button(startButtonTitle) {
-          coordinator.start()
-        }
-        .keyboardShortcut(.defaultAction)
-        .disabled(coordinator.state == .starting || coordinator.state == .active)
+      Button(startButtonTitle) {
+        coordinator.start()
       }
+      .buttonStyle(.borderedProminent)
+      .controlSize(.large)
+      .frame(maxWidth: .infinity, alignment: .trailing)
+      .disabled(coordinator.state == .starting || coordinator.state == .active)
     }
     .padding(16)
     .frame(width: 300)
-    .onAppear {
-      coordinator.refreshPermissionState()
-    }
   }
 
   @ViewBuilder

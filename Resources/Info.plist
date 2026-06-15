@@ -8,6 +8,8 @@
     <string>屏幕清洁</string>
     <key>CFBundleExecutable</key>
     <string>ScreenCleaner</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>com.local.ScreenCleaner</string>
     <key>CFBundleInfoDictionaryVersion</key>
@@ -28,4 +30,3 @@
     <true/>
 </dict>
 </plist>
-

@@ -15,6 +15,9 @@ struct TestRunner {
     testScreenRoleAssignments(recorder)
     testScreenRoleFallback(recorder)
     testEmptyScreenAssignments(recorder)
+    testStatusItemLeftClickAction(recorder)
+    testStatusItemRightClickAction(recorder)
+    testClosingCleaningWindowsKeepsApplicationRunning(recorder)
 
     if recorder.failures.isEmpty {
       print("PASS: \(recorder.checkCount) checks")
@@ -144,6 +147,29 @@ struct TestRunner {
     recorder.expect(
       ScreenSelectionPolicy.assignRoles(to: []).isEmpty,
       "empty screen input produces no assignments"
+    )
+  }
+
+  private static func testStatusItemLeftClickAction(_ recorder: TestRecorder) {
+    recorder.expect(
+      StatusItemInteractionPolicy.action(for: .leftMouseUp) == .togglePopover,
+      "left click only toggles the status popover"
+    )
+  }
+
+  private static func testStatusItemRightClickAction(_ recorder: TestRecorder) {
+    recorder.expect(
+      StatusItemInteractionPolicy.action(for: .rightMouseUp) == .showApplicationMenu,
+      "right click only shows the application menu"
+    )
+  }
+
+  private static func testClosingCleaningWindowsKeepsApplicationRunning(
+    _ recorder: TestRecorder
+  ) {
+    recorder.expect(
+      !ApplicationLifecyclePolicy.shouldTerminateAfterLastWindowClosed,
+      "closing cleaning windows keeps the menu bar application running"
     )
   }
 
