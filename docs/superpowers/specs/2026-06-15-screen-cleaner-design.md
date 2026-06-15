@@ -28,6 +28,8 @@
 ## 键盘拦截
 
 - 使用 `CGEventTap` 监听并吞掉 `keyDown`、`keyUp` 和 `flagsChanged` 事件。
+- 本地打包使用稳定的 bundle identifier designated requirement，避免每次构建因 `CDHash` 改变而丢失辅助功能授权。
+- 如果提供 Apple Development 或 Developer ID 证书，打包脚本优先使用指定证书签名。
 - 保留鼠标移动和点击，使用户可以点击退出按钮。
 - 事件 tap 因超时被系统禁用时，应用尝试立即重新启用。
 - 电源键、Touch ID 和其他硬件级操作不属于普通应用可拦截范围。

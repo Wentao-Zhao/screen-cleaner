@@ -155,6 +155,16 @@ private struct MenuBarContent: View {
     }
     .padding(16)
     .frame(width: 300)
+    .task(id: coordinator.state) {
+      guard coordinator.state == .needsPermission else {
+        return
+      }
+
+      while !Task.isCancelled, coordinator.state == .needsPermission {
+        try? await Task.sleep(for: .milliseconds(500))
+        coordinator.refreshPermissionState()
+      }
+    }
   }
 
   @ViewBuilder
@@ -168,6 +178,10 @@ private struct MenuBarContent: View {
         Text("需要辅助功能权限才能阻止键盘输入。")
           .font(.caption)
           .foregroundStyle(.orange)
+
+        Text("如果已经开启仍未生效，请先删除设置中的旧条目，再重新授权当前版本。")
+          .font(.caption2)
+          .foregroundStyle(.secondary)
 
         Button("打开辅助功能设置") {
           coordinator.openAccessibilitySettings()

@@ -31,6 +31,23 @@ install -m 755 "$BIN_DIR/ScreenCleaner" "$MACOS_DIR/ScreenCleaner"
 install -m 644 "$ROOT_DIR/Resources/Info.plist" "$CONTENTS_DIR/Info.plist"
 install -m 644 "$ROOT_DIR/Resources/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
 
-codesign --force --sign - "$APP_DIR"
+BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$CONTENTS_DIR/Info.plist")"
+SIGNING_IDENTITY="${SCREEN_CLEANER_SIGNING_IDENTITY:--}"
+
+if [[ "$SIGNING_IDENTITY" == "-" ]]; then
+    codesign \
+        --force \
+        --sign - \
+        --identifier "$BUNDLE_ID" \
+        --requirements "=designated => identifier \"$BUNDLE_ID\"" \
+        "$APP_DIR"
+else
+    codesign \
+        --force \
+        --sign "$SIGNING_IDENTITY" \
+        --options runtime \
+        --timestamp \
+        "$APP_DIR"
+fi
 
 echo "Created: $APP_DIR"

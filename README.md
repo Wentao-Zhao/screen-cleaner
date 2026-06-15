@@ -44,7 +44,14 @@ open dist/ScreenCleaner.app
 
 允许“屏幕清洁”后，再次点击菜单栏中的“开始屏幕清洁”。
 
-重新打包后，如果 macOS 将其识别为新的本地签名，可能需要在辅助功能列表中重新允许。
+本地打包使用稳定的 designated requirement，后续重新构建不会因为二进制
+`CDHash` 改变而自动丢失授权。也可以通过
+`SCREEN_CLEANER_SIGNING_IDENTITY` 指定 Apple Development 或 Developer ID
+证书。
+
+从旧版本升级时，需要在辅助功能列表中删除旧的“屏幕清洁”条目，重新打开
+当前 [ScreenCleaner.app](dist/ScreenCleaner.app) 并授权一次。旧版本使用的是
+仅匹配单次构建的临时签名，无法自动迁移。
 
 ## 自动化检查
 
