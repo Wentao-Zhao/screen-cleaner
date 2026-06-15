@@ -52,9 +52,8 @@
 
 ## 测试
 
-- 单元测试覆盖权限不足、事件拦截失败、成功启动、正常退出和资源回滚。
-- 单元测试覆盖多显示器主屏选择策略。
-- 运行 `swift test` 验证逻辑。
+- 逻辑测试覆盖权限不足、事件拦截失败、成功启动、正常退出和资源回滚。
+- 逻辑测试覆盖多显示器主屏选择策略。
+- 当前 Command Line Tools 不包含 XCTest/Swift Testing，使用独立测试可执行程序并运行 `swift run ScreenCleanerLogicTests` 验证逻辑。
 - 运行 `swift build -c release` 验证 AppKit/SwiftUI 代码可编译。
 - 运行打包脚本验证生成标准 `.app` 目录结构和 `Info.plist`。
-
