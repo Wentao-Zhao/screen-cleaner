@@ -1,4 +1,5 @@
 .build/
+.swift-home/
 dist/
 .DS_Store
 *.xcuserstate
