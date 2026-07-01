@@ -1,14 +1,15 @@
 import AppKit
 import ScreenCleanerCore
-import SwiftUI
+import ServiceManagement
 
+@MainActor
 @main
 enum ScreenCleanerMain {
+  private static let appDelegate = AppDelegate()
+
   static func main() {
     let application = NSApplication.shared
-    let delegate = AppDelegate()
-
-    application.delegate = delegate
+    application.delegate = appDelegate
     application.setActivationPolicy(.accessory)
     application.run()
   }
@@ -18,6 +19,7 @@ enum ScreenCleanerMain {
 private final class AppDelegate: NSObject, NSApplicationDelegate {
   private let coordinator: CleaningSessionCoordinator
   private var statusItemController: StatusItemController?
+  private var lifecycleSmokeWindow: NSWindow?
 
   override init() {
     coordinator = CleaningSessionCoordinator(
@@ -29,6 +31,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    if ProcessInfo.processInfo.environment["SCREEN_CLEANER_LIFECYCLE_SMOKE_TEST"] == "1" {
+      runLifecycleSmokeTest()
+      return
+    }
+
     statusItemController = StatusItemController(coordinator: coordinator)
   }
 
@@ -39,22 +46,42 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationWillTerminate(_ notification: Notification) {
     coordinator.stop()
   }
+
+  private func runLifecycleSmokeTest() {
+    let window = NSWindow(
+      contentRect: NSRect(x: -10_000, y: -10_000, width: 1, height: 1),
+      styleMask: [.borderless],
+      backing: .buffered,
+      defer: false
+    )
+    window.alphaValue = 0
+    lifecycleSmokeWindow = window
+    window.orderFront(nil)
+    window.orderOut(nil)
+    window.contentView = nil
+
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+      self.lifecycleSmokeWindow = nil
+
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        print("PASS: application survived overlay teardown")
+        NSApp.terminate(nil)
+      }
+    }
+  }
 }
 
 @MainActor
 private final class StatusItemController: NSObject {
   private let coordinator: CleaningSessionCoordinator
   private let statusItem: NSStatusItem
-  private let popover: NSPopover
+  private let launchAtLoginController = LaunchAtLoginController()
 
   init(coordinator: CleaningSessionCoordinator) {
     self.coordinator = coordinator
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-    popover = NSPopover()
     super.init()
-
     configureStatusItem()
-    configurePopover()
   }
 
   private func configureStatusItem() {
@@ -64,19 +91,10 @@ private final class StatusItemController: NSObject {
 
     button.image = MenuBarIcon.image
     button.imagePosition = .imageOnly
-    button.toolTip = "屏幕清洁"
+    button.toolTip = "右键打开屏幕清洁菜单"
     button.target = self
     button.action = #selector(statusItemClicked(_:))
-    button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-  }
-
-  private func configurePopover() {
-    popover.behavior = .transient
-    popover.animates = true
-    popover.contentSize = NSSize(width: 300, height: 150)
-    popover.contentViewController = NSHostingController(
-      rootView: MenuBarContent(coordinator: coordinator)
-    )
+    button.sendAction(on: [.rightMouseUp])
   }
 
   @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
@@ -84,136 +102,143 @@ private final class StatusItemController: NSObject {
       NSApp.currentEvent?.type == .rightMouseUp ? .rightMouseUp : .leftMouseUp
 
     switch StatusItemInteractionPolicy.action(for: event) {
-    case .togglePopover:
-      togglePopover(relativeTo: sender)
-    case .showApplicationMenu:
-      showApplicationMenu()
-    }
-  }
-
-  private func togglePopover(relativeTo button: NSStatusBarButton) {
-    if popover.isShown {
-      popover.performClose(nil)
+    case .ignore:
       return
+    case .showApplicationMenu:
+      showApplicationMenu(relativeTo: sender)
     }
-
-    coordinator.refreshPermissionState()
-    popover.show(
-      relativeTo: button.bounds,
-      of: button,
-      preferredEdge: .minY
-    )
-    NSApp.activate(ignoringOtherApps: true)
   }
 
-  private func showApplicationMenu() {
-    popover.performClose(nil)
-
-    let menu = NSMenu()
-    let quitItem = NSMenuItem(
-      title: "退出 App",
-      action: #selector(quitApplication),
-      keyEquivalent: "q"
+  private func showApplicationMenu(relativeTo button: NSStatusBarButton) {
+    coordinator.refreshPermissionState()
+    let menu = makeApplicationMenu()
+    menu.popUp(
+      positioning: nil,
+      at: NSPoint(x: 0, y: button.bounds.minY - 4),
+      in: button
     )
-    quitItem.target = self
-    menu.addItem(quitItem)
+  }
 
-    statusItem.menu = menu
-    statusItem.button?.performClick(nil)
-    statusItem.menu = nil
+  private func makeApplicationMenu() -> NSMenu {
+    let menu = NSMenu()
+
+    for definition in StatusMenuPolicy.items(
+      launchAtLoginEnabled: launchAtLoginController.isEnabled
+    ) {
+      switch definition {
+      case .startCleaning:
+        let item = NSMenuItem(
+          title: "开始屏幕清洁",
+          action: #selector(startCleaning),
+          keyEquivalent: ""
+        )
+        item.target = self
+        item.isEnabled = coordinator.state != .starting && coordinator.state != .active
+        menu.addItem(item)
+
+      case .launchAtLogin(let isEnabled):
+        let item = NSMenuItem()
+        item.view = LaunchAtLoginMenuItemView(
+          isEnabled: isEnabled,
+          target: self,
+          action: #selector(launchAtLoginChanged(_:))
+        )
+        menu.addItem(item)
+
+      case .quitApplication:
+        menu.addItem(.separator())
+        let item = NSMenuItem(
+          title: "退出 App",
+          action: #selector(quitApplication),
+          keyEquivalent: "q"
+        )
+        item.target = self
+        menu.addItem(item)
+      }
+    }
+
+    return menu
+  }
+
+  @objc private func startCleaning() {
+    coordinator.start()
+  }
+
+  @objc private func launchAtLoginChanged(_ sender: NSSwitch) {
+    do {
+      try launchAtLoginController.setEnabled(sender.state == .on)
+      sender.state = launchAtLoginController.isEnabled ? .on : .off
+    } catch {
+      sender.state = launchAtLoginController.isEnabled ? .on : .off
+      presentLaunchAtLoginError(error)
+    }
   }
 
   @objc private func quitApplication() {
     coordinator.stop()
     NSApp.terminate(nil)
   }
+
+  private func presentLaunchAtLoginError(_ error: Error) {
+    let alert = NSAlert()
+    alert.messageText = "无法修改开机自启"
+    alert.informativeText = error.localizedDescription
+    alert.alertStyle = .warning
+    alert.runModal()
+  }
 }
 
-private struct MenuBarContent: View {
-  @ObservedObject var coordinator: CleaningSessionCoordinator
+@MainActor
+private final class LaunchAtLoginController {
+  private let service = SMAppService.mainApp
 
-  var body: some View {
-    VStack(alignment: .leading, spacing: 14) {
-      VStack(alignment: .leading, spacing: 4) {
-        Text("屏幕清洁")
-          .font(.headline)
-
-        Text("锁定键盘输入，并将所有显示器变为黑色。")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-
-      statusContent
-
-      Button(startButtonTitle) {
-        coordinator.start()
-      }
-      .buttonStyle(.borderedProminent)
-      .controlSize(.large)
-      .frame(maxWidth: .infinity, alignment: .trailing)
-      .disabled(coordinator.state == .starting || coordinator.state == .active)
-    }
-    .padding(16)
-    .frame(width: 300)
-    .task(id: coordinator.state) {
-      guard coordinator.state == .needsPermission else {
-        return
-      }
-
-      while !Task.isCancelled, coordinator.state == .needsPermission {
-        try? await Task.sleep(for: .milliseconds(500))
-        coordinator.refreshPermissionState()
-      }
+  var isEnabled: Bool {
+    switch service.status {
+    case .enabled, .requiresApproval:
+      return true
+    case .notRegistered, .notFound:
+      return false
+    @unknown default:
+      return LaunchAtLoginPolicy.defaultEnabled
     }
   }
 
-  @ViewBuilder
-  private var statusContent: some View {
-    switch coordinator.state {
-    case .idle:
-      EmptyView()
-
-    case .needsPermission:
-      VStack(alignment: .leading, spacing: 8) {
-        Text("需要辅助功能权限才能阻止键盘输入。")
-          .font(.caption)
-          .foregroundStyle(.orange)
-
-        Text("如果已经开启仍未生效，请先删除设置中的旧条目，再重新授权当前版本。")
-          .font(.caption2)
-          .foregroundStyle(.secondary)
-
-        Button("打开辅助功能设置") {
-          coordinator.openAccessibilitySettings()
-        }
-      }
-
-    case .starting:
-      HStack(spacing: 8) {
-        ProgressView()
-          .controlSize(.small)
-        Text("正在进入清洁模式…")
-          .font(.caption)
-      }
-
-    case .active:
-      Text("清洁模式已开启")
-        .font(.caption)
-        .foregroundStyle(.green)
-
-    case .failed(let message):
-      Text(message)
-        .font(.caption)
-        .foregroundStyle(.red)
+  func setEnabled(_ enabled: Bool) throws {
+    if enabled {
+      try service.register()
+    } else {
+      try service.unregister()
     }
   }
+}
 
-  private var startButtonTitle: String {
-    switch coordinator.state {
-    case .needsPermission:
-      return "重新检查并开始"
-    default:
-      return "开始屏幕清洁"
-    }
+private final class LaunchAtLoginMenuItemView: NSView {
+  init(isEnabled: Bool, target: AnyObject, action: Selector) {
+    super.init(frame: NSRect(x: 0, y: 0, width: 230, height: 32))
+
+    let label = NSTextField(labelWithString: "开机自启")
+    label.translatesAutoresizingMaskIntoConstraints = false
+
+    let toggle = NSSwitch()
+    toggle.translatesAutoresizingMaskIntoConstraints = false
+    toggle.controlSize = .small
+    toggle.state = isEnabled ? .on : .off
+    toggle.target = target
+    toggle.action = action
+
+    addSubview(label)
+    addSubview(toggle)
+
+    NSLayoutConstraint.activate([
+      label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+      label.centerYAnchor.constraint(equalTo: centerYAnchor),
+      toggle.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+      toggle.centerYAnchor.constraint(equalTo: centerYAnchor),
+    ])
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) {
+    nil
   }
 }

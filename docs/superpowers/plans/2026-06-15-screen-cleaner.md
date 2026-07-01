@@ -4,7 +4,7 @@
 
 **目标：** 构建一个 macOS 13+ 菜单栏应用，在清洁模式中拦截键盘输入、覆盖所有显示器，并允许通过主屏幕鼠标按钮退出。
 
-**架构：** `CleaningSessionCoordinator` 负责状态和资源生命周期，通过协议依赖权限、键盘拦截和屏幕覆盖服务。AppKit 服务封装 `CGEventTap` 与 `NSWindow`，SwiftUI 只负责菜单栏和退出按钮。纯状态逻辑和屏幕选择策略使用独立测试可执行程序验证。
+**架构：** `CleaningSessionCoordinator` 负责状态和资源生命周期，通过协议依赖权限、键盘拦截和屏幕覆盖服务。AppKit 服务封装 `CGEventTap`、状态栏右键菜单与 `NSWindow`，SwiftUI 只负责清洁模式退出控件。纯状态逻辑和屏幕选择策略使用独立测试可执行程序验证。
 
 **技术栈：** Swift 5.9 Package、SwiftUI、AppKit、ApplicationServices、CoreGraphics
 
@@ -15,6 +15,7 @@
 - `Package.swift`：Swift Package 定义和 macOS 13 最低版本。
 - `Sources/ScreenCleaner/ScreenCleanerApp.swift`：应用入口和菜单栏界面。
 - `Sources/ScreenCleanerCore/CleaningSessionCoordinator.swift`：清洁会话状态机和依赖协议。
+- `Sources/ScreenCleanerCore/KeyboardEventTapPolicy.swift`：键盘事件 tap 需要捕获的事件类型和 mask。
 - `Sources/ScreenCleaner/AccessibilityPermissionManager.swift`：辅助功能权限检查与系统设置跳转。
 - `Sources/ScreenCleaner/KeyboardEventBlocker.swift`：全局键盘事件 tap 生命周期。
 - `Sources/ScreenCleaner/ScreenOverlayController.swift`：多显示器黑屏窗口。
@@ -80,12 +81,13 @@ state = .active
 let mask = (1 << CGEventType.keyDown.rawValue)
     | (1 << CGEventType.keyUp.rawValue)
     | (1 << CGEventType.flagsChanged.rawValue)
+    | (1 << CGEventType.systemDefined.rawValue)
 ```
 
 ### 任务 4：实现菜单栏界面与图标
 
-- [x] 使用 `MenuBarExtra` 和 `.menuBarExtraStyle(.window)` 创建菜单栏弹窗。
-- [x] 根据协调器状态显示开始按钮、权限说明和错误信息。
+- [x] 使用 `NSStatusItem` 创建仅响应右键的菜单栏入口。
+- [x] 右键菜单提供开始清洁、默认关闭的开机自启开关和退出应用。
 - [x] 使用 `NSBezierPath` 绘制模板图标，扫把缩放为确认稿的 80%。
 - [x] 设置 accessory activation policy，不显示 Dock 图标。
 - [x] 运行 `swift build -c release`，确认无编译错误。
@@ -98,3 +100,12 @@ let mask = (1 << CGEventType.keyDown.rawValue)
 - [x] 运行 `swift build -c release`。
 - [x] 运行 `scripts/package-app.sh` 并检查 `dist/ScreenCleaner.app/Contents/MacOS/ScreenCleaner`。
 - [x] 检查 Git diff 和项目文件列表，确认规格需求均有对应实现。
+
+### 任务 6：修复退出清洁模式崩溃并完善交互
+
+- [x] 保持 `NSApplicationDelegate` 强引用，避免菜单栏应用生命周期依赖弱引用。
+- [x] 退出清洁模式时隐藏窗口、清空内容视图并延迟释放，不调用 `NSWindow.close()`。
+- [x] 将退出控件改为单层自绘圆角，移除系统按钮的额外焦点外框。
+- [x] 添加右键菜单策略、开机自启默认值和应用生命周期检查。
+- [x] 将应用图标改为白色到浅灰背景，显示器缩小 10%，扫把缩小 20%。
+- [x] 将 F 区系统功能键的 `systemDefined` 事件纳入键盘拦截范围。

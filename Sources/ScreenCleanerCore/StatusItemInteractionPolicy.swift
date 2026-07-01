@@ -4,7 +4,7 @@ public enum StatusItemMouseEvent {
 }
 
 public enum StatusItemAction: Equatable {
-  case togglePopover
+  case ignore
   case showApplicationMenu
 }
 
@@ -12,9 +12,29 @@ public enum StatusItemInteractionPolicy {
   public static func action(for event: StatusItemMouseEvent) -> StatusItemAction {
     switch event {
     case .leftMouseUp:
-      return .togglePopover
+      return .ignore
     case .rightMouseUp:
       return .showApplicationMenu
     }
   }
+}
+
+public enum StatusMenuItemDefinition: Equatable {
+  case startCleaning
+  case launchAtLogin(isEnabled: Bool)
+  case quitApplication
+}
+
+public enum StatusMenuPolicy {
+  public static func items(launchAtLoginEnabled: Bool) -> [StatusMenuItemDefinition] {
+    [
+      .startCleaning,
+      .launchAtLogin(isEnabled: launchAtLoginEnabled),
+      .quitApplication,
+    ]
+  }
+}
+
+public enum LaunchAtLoginPolicy {
+  public static let defaultEnabled = false
 }

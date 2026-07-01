@@ -11,18 +11,13 @@ final class KeyboardEventBlocker: KeyboardBlocking {
       return true
     }
 
-    let eventMask =
-      (CGEventMask(1) << CGEventType.keyDown.rawValue)
-      | (CGEventMask(1) << CGEventType.keyUp.rawValue)
-      | (CGEventMask(1) << CGEventType.flagsChanged.rawValue)
-
     let userInfo = Unmanaged.passUnretained(self).toOpaque()
     guard
       let eventTap = CGEvent.tapCreate(
         tap: .cgSessionEventTap,
         place: .headInsertEventTap,
         options: .defaultTap,
-        eventsOfInterest: eventMask,
+        eventsOfInterest: KeyboardEventTapPolicy.eventMask,
         callback: keyboardEventCallback,
         userInfo: userInfo
       )

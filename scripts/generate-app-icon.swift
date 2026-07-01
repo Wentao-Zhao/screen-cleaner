@@ -27,19 +27,24 @@ let tilePath = NSBezierPath(
 
 NSGraphicsContext.saveGraphicsState()
 let shadow = NSShadow()
-shadow.shadowColor = NSColor.black.withAlphaComponent(0.22)
-shadow.shadowBlurRadius = 58
-shadow.shadowOffset = NSSize(width: 0, height: -24)
+shadow.shadowColor = NSColor.black.withAlphaComponent(0.14)
+shadow.shadowBlurRadius = 46
+shadow.shadowOffset = NSSize(width: 0, height: -14)
 shadow.set()
 
 let backgroundGradient = NSGradient(colors: [
-  NSColor(calibratedRed: 0.96, green: 0.98, blue: 1.0, alpha: 1),
-  NSColor(calibratedRed: 0.75, green: 0.86, blue: 0.96, alpha: 1),
+  NSColor(calibratedWhite: 1.0, alpha: 1),
+  NSColor(calibratedWhite: 0.94, alpha: 1),
 ])!
 backgroundGradient.draw(in: tilePath, angle: 90)
 NSGraphicsContext.restoreGraphicsState()
 
 let monitorColor = NSColor(calibratedRed: 0.08, green: 0.11, blue: 0.16, alpha: 1)
+context.saveGState()
+context.translateBy(x: 512, y: 478)
+context.scaleBy(x: 0.9, y: 0.9)
+context.translateBy(x: -512, y: -478)
+
 let screenPath = NSBezierPath(
   roundedRect: NSRect(x: 190, y: 314, width: 644, height: 430),
   xRadius: 58,
@@ -66,11 +71,12 @@ stand.move(to: NSPoint(x: 392, y: 210))
 stand.line(to: NSPoint(x: 632, y: 210))
 monitorColor.setStroke()
 stand.stroke()
+context.restoreGState()
 
 context.saveGState()
 context.translateBy(x: 526, y: 524)
 context.rotate(by: -.pi * 42 / 180)
-context.scaleBy(x: 0.8, y: 0.8)
+context.scaleBy(x: 0.64, y: 0.64)
 
 let handle = NSBezierPath(
   roundedRect: NSRect(x: -30, y: -18, width: 60, height: 320),

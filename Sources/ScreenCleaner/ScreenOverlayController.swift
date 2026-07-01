@@ -4,6 +4,8 @@ import SwiftUI
 
 final class ScreenOverlayController: ScreenOverlayPresenting {
   private var windows: [NSWindow] = []
+  private var retiredWindows: [NSWindow] = []
+  private var releaseRetiredWindowsWorkItem: DispatchWorkItem?
 
   func show(onExit: @escaping () -> Void) -> Bool {
     hide()
@@ -43,11 +45,24 @@ final class ScreenOverlayController: ScreenOverlayPresenting {
   }
 
   func hide() {
-    for window in windows {
-      window.orderOut(nil)
-      window.close()
-    }
+    releaseRetiredWindowsWorkItem?.cancel()
+
+    let windowsToRetire = windows
     windows.removeAll()
+
+    for window in windowsToRetire {
+      window.orderOut(nil)
+      window.contentView = nil
+    }
+
+    retiredWindows.append(contentsOf: windowsToRetire)
+
+    let workItem = DispatchWorkItem { [weak self] in
+      self?.retiredWindows.removeAll()
+      self?.releaseRetiredWindowsWorkItem = nil
+    }
+    releaseRetiredWindowsWorkItem = workItem
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
   }
 
   private func makeWindow(
@@ -112,22 +127,24 @@ private struct CleaningOverlayView: View {
         .ignoresSafeArea()
 
       if showsExitControl {
-        Button(action: onExit) {
-          Text("退出清洁模式")
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 22)
-            .padding(.vertical, 13)
-            .background(
-              RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(nsColor: .darkGray).opacity(0.72))
-            )
-            .overlay(
-              RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(.white.opacity(0.28), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
+        Text("退出清洁模式")
+          .font(.system(size: 15, weight: .semibold))
+          .foregroundStyle(.white)
+          .padding(.horizontal, 22)
+          .padding(.vertical, 13)
+          .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+              .fill(Color(nsColor: .darkGray).opacity(0.72))
+          )
+          .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+              .stroke(.white.opacity(0.28), lineWidth: 1)
+          )
+          .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+          .onTapGesture {
+            DispatchQueue.main.async(execute: onExit)
+          }
+          .accessibilityAddTraits(.isButton)
 
         VStack {
           Spacer()

@@ -1,5 +1,8 @@
 .build/
+.swiftpm/
 .swift-home/
+.superpowers/
 dist/
 .DS_Store
+*.dSYM/
 *.xcuserstate

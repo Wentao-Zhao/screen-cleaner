@@ -1,3 +1,4 @@
+import CoreGraphics
 import Darwin
 import ScreenCleanerCore
 
@@ -17,7 +18,10 @@ struct TestRunner {
     testEmptyScreenAssignments(recorder)
     testStatusItemLeftClickAction(recorder)
     testStatusItemRightClickAction(recorder)
+    testStatusMenuItems(recorder)
+    testLaunchAtLoginDefaultsToDisabled(recorder)
     testClosingCleaningWindowsKeepsApplicationRunning(recorder)
+    testKeyboardEventMaskBlocksFunctionRowSystemEvents(recorder)
 
     if recorder.failures.isEmpty {
       print("PASS: \(recorder.checkCount) checks")
@@ -152,8 +156,8 @@ struct TestRunner {
 
   private static func testStatusItemLeftClickAction(_ recorder: TestRecorder) {
     recorder.expect(
-      StatusItemInteractionPolicy.action(for: .leftMouseUp) == .togglePopover,
-      "left click only toggles the status popover"
+      StatusItemInteractionPolicy.action(for: .leftMouseUp) == .ignore,
+      "left click performs no action"
     )
   }
 
@@ -164,12 +168,40 @@ struct TestRunner {
     )
   }
 
+  private static func testStatusMenuItems(_ recorder: TestRecorder) {
+    recorder.expect(
+      StatusMenuPolicy.items(launchAtLoginEnabled: false) == [
+        .startCleaning,
+        .launchAtLogin(isEnabled: false),
+        .quitApplication,
+      ],
+      "right-click menu exposes cleaning, launch-at-login, and quit in order"
+    )
+  }
+
+  private static func testLaunchAtLoginDefaultsToDisabled(_ recorder: TestRecorder) {
+    recorder.expect(
+      !LaunchAtLoginPolicy.defaultEnabled,
+      "launch at login defaults to disabled"
+    )
+  }
+
   private static func testClosingCleaningWindowsKeepsApplicationRunning(
     _ recorder: TestRecorder
   ) {
     recorder.expect(
       !ApplicationLifecyclePolicy.shouldTerminateAfterLastWindowClosed,
       "closing cleaning windows keeps the menu bar application running"
+    )
+  }
+
+  private static func testKeyboardEventMaskBlocksFunctionRowSystemEvents(
+    _ recorder: TestRecorder
+  ) {
+    recorder.expect(
+      KeyboardEventTapPolicy.capturedEventTypes.contains(.systemDefined)
+        && KeyboardEventTapPolicy.eventMaskContains(.systemDefined),
+      "keyboard blocker captures system-defined function-row events"
     )
   }
 
