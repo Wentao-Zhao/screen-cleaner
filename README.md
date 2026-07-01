@@ -1,16 +1,52 @@
-# 屏幕清洁
+# 屏幕清洁 / ScreenCleaner
 
-一个 macOS 13+ 菜单栏小工具。进入清洁模式后：
+一个 macOS 13+ 菜单栏小工具，用于临时进入「屏幕清洁模式」。进入后屏幕变黑、键盘输入被阻止，只保留鼠标点击退出按钮，适合擦拭屏幕时避免误触。
 
-- 阻止普通键盘输入和系统键盘快捷键。
-- 所有显示器显示纯黑背景。
-- 仅主显示器中央显示“退出清洁模式”按钮。
-- 鼠标保持可用，点击按钮即可恢复。
-- 点击“退出清洁模式”只结束当前清洁会话，应用继续驻留菜单栏。
-- 状态栏图标仅响应右键，菜单提供“开始屏幕清洁”、开机自启开关和“退出 App”。
-- 开机自启默认关闭。
+## 功能
 
-电源键、Touch ID 等硬件级操作无法由普通应用拦截。
+- 进入清洁模式后，所有显示器显示纯黑背景。
+- 主显示器中央显示「退出清洁模式」按钮。
+- 阻止普通键盘输入、功能键区和常见系统快捷键。
+- 鼠标保持可用，点击按钮只退出清洁模式，不退出 App。
+- 菜单栏图标仅响应右键，菜单包含「开始屏幕清洁」「开机自启」和「退出 App」。
+- 开机自启默认关闭，可在右键菜单中切换。
+
+## 限制
+
+- 电源键、Touch ID、合盖、系统级安全快捷键等硬件或系统保留操作无法由普通 App 拦截。
+- 首次启用键盘拦截需要辅助功能权限。
+- 当前发布包未使用 Apple Developer ID 公证，首次打开时可能被 Gatekeeper 拦截。
+
+## 安装
+
+从 GitHub Releases 下载最新 DMG：
+
+```text
+ScreenCleaner-1.0.0-test.dmg
+```
+
+安装步骤：
+
+1. 打开 DMG。
+2. 将 `ScreenCleaner.app` 拖到 `Applications`。
+3. 如果 macOS 阻止直接打开，请右键 `ScreenCleaner.app`，选择「打开」，并在系统提示中确认。
+4. App 启动后不会显示 Dock 图标，只驻留在菜单栏。
+
+## 使用
+
+1. 右键菜单栏图标。
+2. 点击「开始屏幕清洁」。
+3. 第一次使用时，根据系统提示打开辅助功能权限：
+
+   ```text
+   系统设置 > 隐私与安全性 > 辅助功能
+   ```
+
+4. 勾选「屏幕清洁」。
+5. 再次右键菜单栏图标并点击「开始屏幕清洁」。
+6. 清洁完成后，点击屏幕中央的「退出清洁模式」按钮。
+
+如果旧版本正在运行，请先从菜单栏右键图标选择「退出 App」，再替换安装。
 
 ## 构建
 
@@ -25,9 +61,14 @@ cd ScreenCleaner
 dist/ScreenCleaner.app
 ```
 
-## 生成测试版 DMG
+如果本机 Command Line Tools 存在 Swift SDK 小版本不匹配问题，可以指定已安装 SDK：
 
-没有 Developer ID 证书时，可以生成用于小范围测试的未公证 DMG：
+```bash
+SCREEN_CLEANER_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk \
+  ./scripts/package-app.sh
+```
+
+## 生成 DMG
 
 ```bash
 ./scripts/package-dmg.sh
@@ -39,61 +80,31 @@ dist/ScreenCleaner.app
 dist/ScreenCleaner-1.0.0-test.dmg
 ```
 
-DMG 内包含应用、`Applications` 快捷方式和首次打开说明。接收方安装后需要
-右键 `ScreenCleaner.app`，选择“打开”，并在系统提示中再次确认。直接双击可能
-被 Gatekeeper 阻止。
-
-如果旧版本正在运行，先从菜单栏右键图标并选择“退出 App”，再替换安装。应用打开
-后不会显示窗口，也不会出现在 Dock；它只驻留在菜单栏，后续操作都通过右键菜单栏
-图标完成。
-
-测试版适合熟人或内部测试。若要让普通用户正常双击安装，需要使用 Developer ID
-证书签名并提交 Apple 公证。
-
-当前机器的 Command Line Tools 存在默认 Swift SDK 小版本不匹配问题，可以指定已安装的兼容 SDK：
-
-```bash
-SCREEN_CLEANER_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk \
-  ./scripts/package-app.sh
-```
-
-## 运行
-
-```bash
-open dist/ScreenCleaner.app
-```
-
-首次点击“开始屏幕清洁”时，macOS 会请求辅助功能权限。进入：
-
-```text
-系统设置 > 隐私与安全性 > 辅助功能
-```
-
-允许“屏幕清洁”后，再次右键菜单栏图标并点击“开始屏幕清洁”。
-
-本地打包使用稳定的 designated requirement，后续重新构建不会因为二进制
-`CDHash` 改变而自动丢失授权。也可以通过
-`SCREEN_CLEANER_SIGNING_IDENTITY` 指定 Apple Development 或 Developer ID
-证书。
-
-从旧版本升级时，需要在辅助功能列表中删除旧的“屏幕清洁”条目，重新打开
-当前 [ScreenCleaner.app](dist/ScreenCleaner.app) 并授权一次。旧版本使用的是
-仅匹配单次构建的临时签名，无法自动迁移。
+DMG 内包含 App、`Applications` 快捷方式和首次打开说明。
 
 ## 自动化检查
 
 逻辑测试：
 
 ```bash
-SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk
-swift run --sdk "$SDK" ScreenCleanerLogicTests
+swift run ScreenCleanerLogicTests
 ```
 
 发布构建：
 
 ```bash
-SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk
-swift build -c release --sdk "$SDK"
+swift build -c release
 ```
 
-使用完整 Xcode 且工具链匹配时，可以省略 `--sdk` 参数。
+## 签名与权限
+
+本地打包默认使用 ad-hoc 签名，并写入稳定的 designated requirement，减少重复构建导致辅助功能授权失效的概率。
+
+如果有 Apple Development 或 Developer ID 证书，可以通过环境变量指定：
+
+```bash
+SCREEN_CLEANER_SIGNING_IDENTITY="Developer ID Application: Your Name" \
+  ./scripts/package-app.sh
+```
+
+从非常早期版本升级时，如果辅助功能权限异常，可以在系统设置的辅助功能列表中删除旧的「屏幕清洁」条目，然后重新打开当前版本并授权一次。
