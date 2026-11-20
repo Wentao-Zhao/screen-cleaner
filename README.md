@@ -4,6 +4,8 @@
 
 ## 功能
 
+App 图标采用深色屏幕与薄荷绿擦布。状态栏使用对应的单色「屏幕＋擦拭角」矢量图形，自动适应深浅色菜单栏。主图位于 `Resources/AppIcon.png`，运行 `zsh scripts/generate-app-icon.sh` 可重建 `.icns` 和状态栏预览。
+
 - 进入清洁模式后，所有显示器显示纯黑背景。
 - 主显示器中央显示「退出清洁模式」按钮。
 - 阻止普通键盘输入、功能键区和常见系统快捷键。
@@ -19,10 +21,10 @@
 
 ## 安装
 
-从 GitHub Releases 下载最新 DMG：
+从 [GitHub Releases](https://github.com/Wentao-Zhao/screen-cleaner/releases/latest) 下载最新 DMG：
 
 ```text
-ScreenCleaner-1.0.0-test.dmg
+ScreenCleaner-1.0.1-test.dmg
 ```
 
 安装步骤：
@@ -77,10 +79,10 @@ SCREEN_CLEANER_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk \
 生成文件：
 
 ```text
-dist/ScreenCleaner-1.0.0-test.dmg
+dist/ScreenCleaner-1.0.1-test.dmg
 ```
 
-DMG 内包含 App、`Applications` 快捷方式和首次打开说明。
+DMG 内包含 App、`Applications` 快捷方式和首次打开说明，同时输出 `.sha256` 校验文件。
 
 ## 自动化检查
 

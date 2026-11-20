@@ -11,18 +11,18 @@ RESOURCES_DIR="$CONTENTS_DIR/Resources"
 export CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-$ROOT_DIR/.build/clang-module-cache}"
 mkdir -p "$CLANG_MODULE_CACHE_PATH"
 
-BUILD_ARGS=(-c release)
+BUILD_ARGS=(--disable-sandbox --cache-path "$ROOT_DIR/.build/swift-cache"
+    --config-path "$ROOT_DIR/.build/swift-config" --security-path "$ROOT_DIR/.build/swift-security"
+    -c release -debug-info-format none)
 if [[ -n "${SCREEN_CLEANER_SDK:-}" ]]; then
     BUILD_ARGS+=(--sdk "$SCREEN_CLEANER_SDK")
 fi
 
 cd "$ROOT_DIR"
-swift build "${BUILD_ARGS[@]}"
+swift build "${BUILD_ARGS[@]}" --product ScreenCleaner
 BIN_DIR="$(swift build "${BUILD_ARGS[@]}" --show-bin-path)"
 
-if [[ ! -f "$ROOT_DIR/Resources/AppIcon.icns" ]]; then
-    SCREEN_CLEANER_SDK="${SCREEN_CLEANER_SDK:-}" "$ROOT_DIR/scripts/generate-app-icon.sh"
-fi
+SCREEN_CLEANER_SDK="${SCREEN_CLEANER_SDK:-}" "$ROOT_DIR/scripts/generate-app-icon.sh"
 
 rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
@@ -50,4 +50,6 @@ else
         "$APP_DIR"
 fi
 
+codesign --verify --strict "$APP_DIR"
+touch "$APP_DIR"
 echo "Created: $APP_DIR"

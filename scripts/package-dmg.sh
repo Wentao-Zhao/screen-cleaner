@@ -23,6 +23,7 @@ DMG_PATH="$DIST_DIR/ScreenCleaner-$VERSION-test.dmg"
 TMP_DMG_PATH="$DIST_DIR/.ScreenCleaner-$VERSION-test.dmg.tmp.dmg"
 
 ditto "$APP_DIR" "$STAGING_DIR/ScreenCleaner.app"
+touch "$STAGING_DIR/ScreenCleaner.app"
 ln -s /Applications "$STAGING_DIR/Applications"
 install -m 644 "$README_FILE" "$STAGING_DIR/首次打开说明.txt"
 
@@ -36,4 +37,8 @@ hdiutil create \
 
 hdiutil verify "$TMP_DMG_PATH"
 mv -f "$TMP_DMG_PATH" "$DMG_PATH"
+(
+    cd "$DIST_DIR"
+    shasum -a 256 "$(basename "$DMG_PATH")" > "$(basename "$DMG_PATH").sha256"
+)
 echo "Created: $DMG_PATH"

@@ -6,8 +6,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SDK="${SCREEN_CLEANER_SDK:-$(xcrun --show-sdk-path)}"
 WORK_DIR="$(mktemp -d)"
 ICONSET_DIR="$WORK_DIR/AppIcon.iconset"
-GENERATOR="$WORK_DIR/generate-app-icon"
-MASTER_PNG="$WORK_DIR/AppIcon-1024.png"
+MASTER_PNG="$ROOT_DIR/Resources/AppIcon.png"
 
 cleanup() {
     rm -rf "$WORK_DIR"
@@ -16,13 +15,10 @@ trap cleanup EXIT
 
 mkdir -p "$ROOT_DIR/.build/clang-module-cache" "$ICONSET_DIR"
 
-swiftc \
-    -sdk "$SDK" \
-    -module-cache-path "$ROOT_DIR/.build/clang-module-cache" \
-    "$ROOT_DIR/scripts/generate-app-icon.swift" \
-    -o "$GENERATOR"
-
-"$GENERATOR" "$MASTER_PNG"
+if [[ ! -f "$MASTER_PNG" ]]; then
+    print -u2 "Missing icon master: $MASTER_PNG"
+    exit 1
+fi
 
 sips -z 16 16 "$MASTER_PNG" --out "$ICONSET_DIR/icon_16x16.png" >/dev/null
 sips -z 32 32 "$MASTER_PNG" --out "$ICONSET_DIR/icon_16x16@2x.png" >/dev/null
@@ -35,7 +31,14 @@ sips -z 512 512 "$MASTER_PNG" --out "$ICONSET_DIR/icon_256x256@2x.png" >/dev/nul
 sips -z 512 512 "$MASTER_PNG" --out "$ICONSET_DIR/icon_512x512.png" >/dev/null
 cp "$MASTER_PNG" "$ICONSET_DIR/icon_512x512@2x.png"
 
-iconutil -c icns "$ICONSET_DIR" -o "$ROOT_DIR/Resources/AppIcon.icns"
+swiftc \
+    -sdk "$SDK" \
+    -module-cache-path "$ROOT_DIR/.build/clang-module-cache" \
+    -parse-as-library \
+    "$ROOT_DIR/Sources/ScreenCleaner/MenuBarIcon.swift" \
+    "$ROOT_DIR/scripts/export-status-icon.swift" \
+    -o "$WORK_DIR/export-status-icon"
+"$WORK_DIR/export-status-icon" "$ROOT_DIR/Resources" "$ICONSET_DIR"
 
 echo "Created: $ROOT_DIR/Resources/AppIcon.icns"
 
