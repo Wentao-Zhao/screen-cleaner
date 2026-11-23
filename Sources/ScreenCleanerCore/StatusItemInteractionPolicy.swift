@@ -21,6 +21,7 @@ public enum StatusItemInteractionPolicy {
 
 public enum StatusMenuItemDefinition: Equatable {
   case startCleaning
+  case preferences
   case launchAtLogin(isEnabled: Bool)
   case quitApplication
 }
@@ -29,6 +30,7 @@ public enum StatusMenuPolicy {
   public static func items(launchAtLoginEnabled: Bool) -> [StatusMenuItemDefinition] {
     [
       .startCleaning,
+      .preferences,
       .launchAtLogin(isEnabled: launchAtLoginEnabled),
       .quitApplication,
     ]

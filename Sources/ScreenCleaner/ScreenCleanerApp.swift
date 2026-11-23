@@ -19,6 +19,7 @@ enum ScreenCleanerMain {
 private final class AppDelegate: NSObject, NSApplicationDelegate {
   private let coordinator: CleaningSessionCoordinator
   private var statusItemController: StatusItemController?
+  private var controlsController: CleanerControlsController?
   private var lifecycleSmokeWindow: NSWindow?
 
   override init() {
@@ -36,7 +37,21 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
       return
     }
 
-    statusItemController = StatusItemController(coordinator: coordinator)
+    let controls = CleanerControlsController { [weak self] in self?.coordinator.start() }
+    let status = StatusItemController(coordinator: coordinator) { [weak controls] in
+      controls?.showPreferences()
+    }
+    controls.onIconVisibilityChanged = { [weak status] visible in status?.setVisible(visible) }
+    controlsController = controls
+    statusItemController = status
+    controls.start()
+  }
+
+  func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+    if coordinator.state != .active, coordinator.state != .starting {
+      controlsController?.showPreferences()
+    }
+    return false
   }
 
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -44,6 +59,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationWillTerminate(_ notification: Notification) {
+    controlsController?.stop()
     coordinator.stop()
   }
 
@@ -76,12 +92,18 @@ private final class StatusItemController: NSObject {
   private let coordinator: CleaningSessionCoordinator
   private let statusItem: NSStatusItem
   private let launchAtLoginController = LaunchAtLoginController()
+  private let onShowPreferences: () -> Void
 
-  init(coordinator: CleaningSessionCoordinator) {
+  init(coordinator: CleaningSessionCoordinator, onShowPreferences: @escaping () -> Void) {
     self.coordinator = coordinator
+    self.onShowPreferences = onShowPreferences
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     super.init()
     configureStatusItem()
+  }
+
+  func setVisible(_ visible: Bool) {
+    statusItem.isVisible = visible
   }
 
   private func configureStatusItem() {
@@ -145,6 +167,11 @@ private final class StatusItemController: NSObject {
         )
         menu.addItem(item)
 
+      case .preferences:
+        let item = NSMenuItem(title: "偏好设置…", action: #selector(showPreferences), keyEquivalent: ",")
+        item.target = self
+        menu.addItem(item)
+
       case .quitApplication:
         menu.addItem(.separator())
         let item = NSMenuItem(
@@ -163,6 +190,8 @@ private final class StatusItemController: NSObject {
   @objc private func startCleaning() {
     coordinator.start()
   }
+
+  @objc private func showPreferences() { onShowPreferences() }
 
   @objc private func launchAtLoginChanged(_ sender: NSSwitch) {
     do {

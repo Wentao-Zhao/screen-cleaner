@@ -1,5 +1,6 @@
 import CoreGraphics
 import Darwin
+import Foundation
 import ScreenCleanerCore
 
 @MainActor
@@ -22,6 +23,7 @@ struct TestRunner {
     testLaunchAtLoginDefaultsToDisabled(recorder)
     testClosingCleaningWindowsKeepsApplicationRunning(recorder)
     testKeyboardEventMaskBlocksFunctionRowSystemEvents(recorder)
+    testShortcutAndPreferences(recorder)
 
     if recorder.failures.isEmpty {
       print("PASS: \(recorder.checkCount) checks")
@@ -172,11 +174,39 @@ struct TestRunner {
     recorder.expect(
       StatusMenuPolicy.items(launchAtLoginEnabled: false) == [
         .startCleaning,
+        .preferences,
         .launchAtLogin(isEnabled: false),
         .quitApplication,
       ],
       "right-click menu exposes cleaning, launch-at-login, and quit in order"
     )
+  }
+
+  private static func testShortcutAndPreferences(_ recorder: TestRecorder) {
+    let shortcut = CleaningShortcut.default
+    recorder.expect(shortcut.isValid && shortcut.displayName == "⌃⌥⌘C", "default cleaning shortcut is valid")
+    recorder.expect(!CleaningShortcut(keyCode: 8, modifiers: [], keyName: "C").isValid,
+                    "plain typing cannot become a cleaning shortcut")
+    recorder.expect(!CleaningShortcut(keyCode: 8, modifiers: [.shift], keyName: "C").isValid,
+                    "shift-only typing cannot become a cleaning shortcut")
+    recorder.expect(!CleaningShortcut(keyCode: 56, modifiers: [.command], keyName: "Shift").isValid,
+                    "modifier keys cannot become shortcuts")
+    let suite = "ScreenCleanerTests.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let store = CleanerPreferences(defaults: defaults)
+    recorder.expect(store.showsMenuBarIcon && store.shortcut == shortcut, "fresh preferences use safe defaults")
+    let custom = CleaningShortcut(keyCode: 40, modifiers: [.control, .option], keyName: "K")
+    store.shortcut = custom
+    store.showsMenuBarIcon = false
+    let reloaded = CleanerPreferences(defaults: defaults)
+    recorder.expect(reloaded.shortcut == custom && !reloaded.showsMenuBarIcon, "custom shortcut and hidden icon persist")
+    defaults.set(Data("corrupt".utf8), forKey: "cleaningShortcut")
+    recorder.expect(store.shortcut == shortcut, "invalid saved shortcut falls back to a usable default")
+    recorder.expect(CleanerEntryPolicy.showsIcon(preferred: false, shortcutRegistered: false),
+                    "failed registration keeps a recovery icon")
+    recorder.expect(!CleanerEntryPolicy.showsIcon(preferred: false, shortcutRegistered: true),
+                    "working shortcut permits hiding the icon")
   }
 
   private static func testLaunchAtLoginDefaultsToDisabled(_ recorder: TestRecorder) {

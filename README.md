@@ -10,7 +10,10 @@ App 图标采用深色屏幕与薄荷绿擦布。状态栏使用对应的单色�
 - 主显示器中央显示「退出清洁模式」按钮。
 - 阻止普通键盘输入、功能键区和常见系统快捷键。
 - 鼠标保持可用，点击按钮只退出清洁模式，不退出 App。
-- 菜单栏图标仅响应右键，菜单包含「开始屏幕清洁」「开机自启」和「退出 App」。
+- 默认按 `⌃⌥⌘C` 开始清洁；右键菜单中的「偏好设置」支持录入自定义组合键。
+- 「偏好设置」支持关闭状态栏图标。隐藏后快捷键仍然有效；从「应用程序」再次打开屏幕清洁，可返回设置并恢复图标。
+- 快捷键需要包含 Command、Control 或 Option。Esc 取消录入；新组合键被占用时保留旧设置。启动时注册失败会保留图标，避免无法操作。
+- 菜单栏图标仅响应右键，菜单包含「开始屏幕清洁」「偏好设置」「开机自启」和「退出 App」。
 - 开机自启默认关闭，可在右键菜单中切换。
 
 ## 限制
@@ -24,7 +27,7 @@ App 图标采用深色屏幕与薄荷绿擦布。状态栏使用对应的单色�
 从 [GitHub Releases](https://github.com/Wentao-Zhao/screen-cleaner/releases/latest) 下载最新 DMG：
 
 ```text
-ScreenCleaner-1.0.1-test.dmg
+ScreenCleaner-1.1.0-test.dmg
 ```
 
 安装步骤：
@@ -79,7 +82,7 @@ SCREEN_CLEANER_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk \
 生成文件：
 
 ```text
-dist/ScreenCleaner-1.0.1-test.dmg
+dist/ScreenCleaner-1.1.0-test.dmg
 ```
 
 DMG 内包含 App、`Applications` 快捷方式和首次打开说明，同时输出 `.sha256` 校验文件。
@@ -90,6 +93,7 @@ DMG 内包含 App、`Applications` 快捷方式和首次打开说明，同时输
 
 ```bash
 swift run ScreenCleanerLogicTests
+zsh scripts/check-controls.sh
 ```
 
 发布构建：
