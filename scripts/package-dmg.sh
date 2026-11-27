@@ -19,8 +19,8 @@ trap cleanup EXIT
 "$ROOT_DIR/scripts/package-app.sh"
 
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")"
-DMG_PATH="$DIST_DIR/ScreenCleaner-$VERSION-test.dmg"
-TMP_DMG_PATH="$DIST_DIR/.ScreenCleaner-$VERSION-test.dmg.tmp.dmg"
+DMG_PATH="$DIST_DIR/ScreenCleaner-$VERSION.dmg"
+TMP_DMG_PATH="$DIST_DIR/.ScreenCleaner-$VERSION.dmg.tmp.dmg"
 
 ditto "$APP_DIR" "$STAGING_DIR/ScreenCleaner.app"
 touch "$STAGING_DIR/ScreenCleaner.app"
@@ -35,7 +35,7 @@ hdiutil create \
     -format UDZO \
     "$TMP_DMG_PATH"
 
-hdiutil verify "$TMP_DMG_PATH"
+zsh "$ROOT_DIR/scripts/verify-dmg.sh" "$TMP_DMG_PATH"
 mv -f "$TMP_DMG_PATH" "$DMG_PATH"
 (
     cd "$DIST_DIR"

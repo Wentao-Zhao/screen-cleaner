@@ -1,0 +1,8 @@
+{
+  "repository": "Wentao-Zhao/screen-cleaner",
+  "app_name": "ScreenCleaner",
+  "target": "ScreenCleaner",
+  "key_account": "mac-app-updates.com.local.ScreenCleaner",
+  "sparkle_version": "2.10.1",
+  "source_repository": "Wentao-Zhao/screen-cleaner"
+}

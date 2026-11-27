@@ -11,7 +11,7 @@ RESOURCES_DIR="$CONTENTS_DIR/Resources"
 export CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-$ROOT_DIR/.build/clang-module-cache}"
 mkdir -p "$CLANG_MODULE_CACHE_PATH"
 
-BUILD_ARGS=(--disable-sandbox --cache-path "$ROOT_DIR/.build/swift-cache"
+BUILD_ARGS=(--build-system native --disable-sandbox --cache-path "$ROOT_DIR/.build/swift-cache"
     --config-path "$ROOT_DIR/.build/swift-config" --security-path "$ROOT_DIR/.build/swift-security"
     -c release -debug-info-format none)
 if [[ -n "${SCREEN_CLEANER_SDK:-}" ]]; then
@@ -33,6 +33,9 @@ install -m 644 "$ROOT_DIR/Resources/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
 
 BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$CONTENTS_DIR/Info.plist")"
 SIGNING_IDENTITY="${SCREEN_CLEANER_SIGNING_IDENTITY:--}"
+
+zsh "$ROOT_DIR/scripts/embed-sparkle.sh" "$APP_DIR" "$BIN_DIR" "$SIGNING_IDENTITY"
+install -m 644 "$ROOT_DIR/Resources/Sparkle-LICENSE.txt" "$RESOURCES_DIR/Sparkle-LICENSE.txt"
 
 if [[ "$SIGNING_IDENTITY" == "-" ]]; then
     codesign \
